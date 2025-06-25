@@ -20,6 +20,7 @@ origins = [
     "http://localhost",
     "http://localhost:3000",
     "http://localhost:8080",
+    "https://kraliken-fastapi.azurewebsites.net",
 ]
 
 app.add_middleware(
