@@ -1,10 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import select
-from database.db import create_db_and_tables
-from database.db import SessionDep
-from database.models import User
+from database.connection import create_db_and_tables
 from contextlib import asynccontextmanager
+from routers.auth import authentication
+from routers.admin import users
 
 
 @asynccontextmanager
@@ -32,8 +31,5 @@ app.add_middleware(
 )
 
 
-@app.get("/")
-def read_root(session: SessionDep):
-    statement = select(User)
-    users = session.exec(statement).all()
-    return users
+app.include_router(authentication.router)
+app.include_router(users.router, prefix="/api/v1")
