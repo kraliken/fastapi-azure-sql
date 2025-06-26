@@ -21,6 +21,7 @@ origins = [
     "http://localhost:3000",
     "http://localhost:8080",
     "https://kraliken-fastapi.azurewebsites.net",
+    "https://kraliken-nextjs.azurewebsites.net",
 ]
 
 app.add_middleware(
