@@ -7,8 +7,12 @@ from datetime import datetime, timezone, timedelta
 from jose import JWTError, jwt
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
-load_dotenv()
+print("cwd:", Path().resolve())
+print("env file exists:", Path(".env").exists())
+
+load_dotenv(override=True)
 
 secret_key = os.getenv("SECRET_KEY")
 algorithm = os.getenv("ALGORITHM")
@@ -20,6 +24,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=access_token_expire_minutes)
+    print("access_token_expire_minutes", access_token_expire_minutes)
+    print("expire in create_access_token", expire)
+    print("expire_minutes", os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
     return encoded_jwt
