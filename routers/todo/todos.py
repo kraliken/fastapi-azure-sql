@@ -1,0 +1,80 @@
+from typing import Annotated
+from fastapi import APIRouter, Depends
+from routers.auth.oauth2 import get_current_user
+from database.models import Todo, User
+from database.connection import SessionDep
+from sqlmodel import select, func, case
+
+
+router = APIRouter(prefix="/todo", tags=["todo"])
+
+
+@router.get("/all")
+def get_todos(
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: SessionDep,
+    category: str | None = None,
+    status: str | None = None,
+):
+
+    base_query = select(Todo).where(
+        Todo.user_id == current_user.id, Todo.category == category
+    )
+
+    count_query = select(func.count()).where(
+        Todo.user_id == current_user.id, Todo.category == category
+    )
+
+    all_todos_count = session.exec(count_query).one()
+
+    # Kategória szűrés (opcionális)
+    if category:
+        base_query = base_query.where(Todo.category == category)
+        count_query = count_query.where(Todo.category == category)
+
+    # Státusz szűrés (opcionális)
+    if status:
+        base_query = base_query.where(Todo.status == status)
+
+    # Rendezés (SQL Server-kompatibilis!)
+    filtered_query = base_query.order_by(
+        case((Todo.status == "done", 1), else_=0),
+        case((Todo.deadline.is_(None), 1), else_=0),
+        Todo.deadline.asc(),
+        Todo.created_at.asc(),
+    )
+
+    all_todos_count = session.exec(count_query).one()
+    filtered_todos = session.exec(filtered_query).all()
+
+    return {"all_count": all_todos_count, "filtered": filtered_todos}
+
+
+@router.get("/stats")
+def get_todo_stats(
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: SessionDep,
+):
+    # SQL query a kategóriánkénti csoportosításhoz
+    query = (
+        select(Todo.category, func.count(Todo.id).label("count"))
+        .where(Todo.user_id == current_user.id)
+        .group_by(Todo.category)
+    )
+
+    results = session.exec(query).all()
+
+    # Alapértelmezett értékek minden kategóriához
+    stats = {"personal": 0, "work": 0, "development": 0, "total": 0}
+
+    # Feltöltjük a tényleges értékekkel
+
+    for category, count in results:
+        if category in stats:
+            stats[category] = count
+
+    return [
+        {"name": "personal", "count": stats["personal"]},
+        {"name": "work", "count": stats["work"]},
+        {"name": "development", "count": stats["development"]},
+    ]

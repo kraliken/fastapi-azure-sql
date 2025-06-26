@@ -4,6 +4,7 @@ from database.connection import create_db_and_tables
 from contextlib import asynccontextmanager
 from routers.auth import authentication
 from routers.admin import users
+from routers.todo import todos
 
 
 @asynccontextmanager
@@ -35,3 +36,4 @@ app.add_middleware(
 
 app.include_router(authentication.router)
 app.include_router(users.router, prefix="/api/v1")
+app.include_router(todos.router, prefix="/api/v1")

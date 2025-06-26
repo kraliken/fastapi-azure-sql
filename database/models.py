@@ -1,5 +1,5 @@
 from sqlmodel import Field, SQLModel, Relationship
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timezone
 from enum import Enum
 
@@ -17,6 +17,8 @@ class User(SQLModel, table=True):
     role: Role = Field(default=Role.member)
     hashed_password: str = Field(max_length=255)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    todos: List["Todo"] = Relationship(back_populates="user")
 
 
 class UserCreate(SQLModel):
@@ -42,3 +44,31 @@ class TokenData(SQLModel):
 
 class TokenWithUser(Token):
     user: UserRead
+
+
+class Category(str, Enum):
+    work = "work"
+    personal = "personal"
+    development = "development"
+
+
+class Status(str, Enum):
+    backlog = "backlog"
+    progress = "progress"
+    done = "done"
+
+
+class Todo(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str = Field(index=True, min_length=3, max_length=255)
+    description: Optional[str] = None
+    category: Category = Field(default=Category.personal)
+    status: Status = Field(default=Status.backlog)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    modified_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    deadline: Optional[datetime] = None
+    priority: Optional[int] = Field(default=1, ge=1, le=5)
+    archived: bool = Field(default=False)
+
+    user_id: int = Field(foreign_key="users.id")
+    user: Optional[User] = Relationship(back_populates="todos")
