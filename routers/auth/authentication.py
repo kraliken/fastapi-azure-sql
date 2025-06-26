@@ -6,7 +6,7 @@ from sqlmodel import select
 from utils.hashing import Hash
 from datetime import datetime, timezone
 from typing import Annotated
-from .oauth2 import create_access_token
+from .oauth2 import create_access_token, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -69,3 +69,8 @@ def login(
             created_at=user.created_at,
         ),
     )
+
+
+@router.get("/me")
+def read_users_me(current_user: Annotated[UserRead, Depends(get_current_user)]):
+    return current_user

@@ -1,5 +1,8 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
+from sqlmodel import select
+from database.connection import SessionDep
+from database.models import TokenData, User, UserRead
 from datetime import datetime, timezone, timedelta
 from jose import JWTError, jwt
 import os
@@ -22,20 +25,41 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 
-def verify_token(token: str):
+def get_current_user(
+    request: Request,
+    session: SessionDep,
+):
+
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    token = request.cookies.get("access_token")
+
+    if not token:
+        raise credentials_exception
+
     try:
         payload = jwt.decode(token, secret_key, algorithms=[algorithm])
-        username: str = payload.get("username")
+        username = payload.get("username")
+
         if username is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        return username
+            raise credentials_exception
+        token_data = TokenData(username=username)
     except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise credentials_exception
+
+    statement = select(User).where(User.username == token_data.username)
+    user = session.exec(statement).first()
+
+    if user is None:
+        raise credentials_exception
+
+    return UserRead(
+        id=user.id,
+        username=user.username,
+        role=user.role,
+        created_at=user.created_at,
+    )
