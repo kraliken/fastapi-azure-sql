@@ -1,7 +1,7 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status, HTTPException
 from routers.auth.oauth2 import get_current_user
-from database.models import Todo, User
+from database.models import Todo, TodoCreate, User
 from database.connection import SessionDep
 from sqlmodel import select, func, case
 
@@ -78,3 +78,30 @@ def get_todo_stats(
         {"name": "work", "count": stats["work"]},
         {"name": "development", "count": stats["development"]},
     ]
+
+
+@router.post("/create", status_code=status.HTTP_201_CREATED)
+def create_todo(
+    todo: TodoCreate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: SessionDep,
+):
+    db_todo = Todo(**todo.model_dump(), user_id=current_user.id)
+    session.add(db_todo)
+    session.commit()
+    session.refresh(db_todo)
+    return db_todo
+
+
+@router.delete("/{todo_id}")
+def delete_todo(
+    todo_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: SessionDep,
+):
+    todo = session.get(Todo, todo_id)
+    if not todo or todo.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Todo not found")
+    session.delete(todo)
+    session.commit()
+    return {"ok": True}

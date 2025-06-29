@@ -72,3 +72,12 @@ class Todo(SQLModel, table=True):
 
     user_id: int = Field(foreign_key="users.id")
     user: Optional[User] = Relationship(back_populates="todos")
+
+
+class TodoCreate(SQLModel):
+    title: str
+    description: Optional[str] = None
+    category: Optional[Category] = Category.personal
+    status: Optional[Status] = Status.backlog
+    deadline: Optional[datetime] = None
+    priority: Optional[int] = 1

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, status, HTTPException, Depends
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.exc import OperationalError
 from database.models import User, UserCreate, UserRead, Token, TokenWithUser
 from database.connection import SessionDep
 from sqlmodel import select
@@ -40,8 +41,15 @@ def login(
     request: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: SessionDep,
 ):
-    statement = select(User).where(User.username == request.username)
-    user = session.exec(statement).first()
+    try:
+        statement = select(User).where(User.username == request.username)
+        user = session.exec(statement).first()
+    except OperationalError:
+        # Adatbázis hiba (pl. Azure DB alszik vagy hálózati gond)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Server waking up, please try again soon.",
+        )
 
     if not user:
         raise HTTPException(
