@@ -1,10 +1,10 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, status, HTTPException
 from routers.auth.oauth2 import get_current_user
-from database.models import Todo, TodoCreate, User
+from database.models import Todo, TodoCreate, TodoUpdate, User
 from database.connection import SessionDep
 from sqlmodel import select, func, case
-
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/todo", tags=["todo"])
 
@@ -87,6 +87,31 @@ def create_todo(
     session: SessionDep,
 ):
     db_todo = Todo(**todo.model_dump(), user_id=current_user.id)
+    session.add(db_todo)
+    session.commit()
+    session.refresh(db_todo)
+    return db_todo
+
+
+@router.patch("/{todo_id}")
+def update_todo(
+    todo_id: int,
+    todo_update: TodoUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: SessionDep,
+):
+    db_todo = session.get(Todo, todo_id)
+
+    if not db_todo or db_todo.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Todo not found")
+
+    for field, value in todo_update.model_dump(exclude_unset=True).items():
+        setattr(db_todo, field, value)
+
+    db_todo.modified_at = datetime.now(timezone.utc)
+
+    # db_todo.title = todo_update.title
+    # db_todo.modify_at = datetime.now(timezone.utc)
     session.add(db_todo)
     session.commit()
     session.refresh(db_todo)
